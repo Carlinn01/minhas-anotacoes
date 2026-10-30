@@ -1,0 +1,5 @@
+<resources>
+    <style name="Theme.Anotacoes" parent="android:Theme.Material.NoActionBar">
+        <item name="android:colorAccent">#9FA8DA</item>
+    </style>
+</resources>
