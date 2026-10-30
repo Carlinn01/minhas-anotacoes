@@ -50,6 +50,6 @@ jobs:
         with:
           tag_name: v1.0.${{ github.run_number }}
           name: Minhas Anotações 1.0.${{ github.run_number }}
-          body: Baixe o arquivo **MinhasAnotacoes.apk** abaixo no celular e instale.
+          body: ${{ github.event.head_commit.message }}
           files: MinhasAnotacoes.apk
           make_latest: true

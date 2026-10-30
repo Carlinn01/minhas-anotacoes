@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
@@ -99,6 +100,7 @@ class MainActivity : ComponentActivity() {
         Store.init(this)
         Lembretes.criarCanal(this)
         Store.reagendarTodos()
+        Atualizador.agendarVerificacao(this)
         setContent { TemaApp { App() } }
     }
 }
@@ -187,8 +189,32 @@ fun App() {
         ) pedirPermissao.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 
+    var novaVersao by remember { mutableStateOf<Versao?>(null) }
+    LaunchedEffect(Unit) {
+        novaVersao = runCatching { Atualizador.buscarNova() }.getOrNull()
+    }
+
     Scaffold(
-        topBar = { TopAppBar(title = { Text(aba.nomeAba) }) },
+        topBar = {
+            TopAppBar(
+                title = { Text(aba.nomeAba) },
+                actions = {
+                    IconButton(onClick = {
+                        scope.launch {
+                            val r = runCatching { Atualizador.buscarNova() }
+                            val v = r.getOrNull()
+                            if (v != null) novaVersao = v
+                            else snackbar.showSnackbar(
+                                if (r.isFailure) "Não foi possível verificar. Confira a internet."
+                                else "Você já tem a versão mais recente (${BuildConfig.VERSION_NAME})."
+                            )
+                        }
+                    }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Verificar atualizações")
+                    }
+                },
+            )
+        },
         bottomBar = {
             NavigationBar {
                 Tipo.entries.forEach { t ->
@@ -239,6 +265,60 @@ fun App() {
             },
         )
     }
+
+    novaVersao?.let { AtualizacaoDialog(it, onFechar = { novaVersao = null }) }
+}
+
+@Composable
+fun AtualizacaoDialog(v: Versao, onFechar: () -> Unit) {
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var progresso by remember { mutableStateOf<Float?>(null) }
+    var erro by remember { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = { if (progresso == null) onFechar() },
+        title = { Text("Nova versão disponível") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Versão ${v.nome} (você tem a ${BuildConfig.VERSION_NAME}).")
+                if (v.notas.isNotBlank()) {
+                    Text("Novidades:\n${v.notas}", style = MaterialTheme.typography.bodySmall)
+                }
+                progresso?.let {
+                    LinearProgressIndicator(progress = { it }, modifier = Modifier.fillMaxWidth())
+                    Text("Baixando… ${(it * 100).roundToInt()}%", style = MaterialTheme.typography.bodySmall)
+                }
+                erro?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = progresso == null,
+                onClick = {
+                    if (!Atualizador.podeInstalar(ctx)) {
+                        Atualizador.abrirPermissaoInstalar(ctx)
+                        erro = "Ative \"Permitir desta fonte\" para o Minhas Anotações, volte e toque em Atualizar de novo."
+                        return@TextButton
+                    }
+                    erro = null
+                    progresso = 0f
+                    scope.launch {
+                        try {
+                            val arquivo = Atualizador.baixar(ctx, v) { progresso = it }
+                            Atualizador.instalar(ctx, arquivo)
+                            onFechar()
+                        } catch (e: Exception) {
+                            erro = "Falha ao baixar. Confira a internet e tente de novo."
+                        } finally {
+                            progresso = null
+                        }
+                    }
+                },
+            ) { Text("Atualizar") }
+        },
+        dismissButton = { TextButton(enabled = progresso == null, onClick = onFechar) { Text("Depois") } },
+    )
 }
 
 @Composable

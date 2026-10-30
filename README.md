@@ -18,6 +18,13 @@ App Android para anotar tarefas, a lista de compras e metas, com lembretes no ce
 2. Abra o arquivo. Se o Android pedir, permita "instalar apps desta fonte".
 3. Ao abrir o app, permita as **notificações** para receber os lembretes.
 
+## Atualizações
+
+O app verifica os Releases deste repositório ao abrir (e a cada 12 horas em segundo plano).
+Quando há versão nova, aparece **Nova versão disponível**: toque em **Atualizar** e o app baixa e
+abre o instalador. Na primeira vez o Android pede para permitir "instalar desta fonte".
+O botão ⟳ no topo verifica na hora. A mensagem do commit aparece como "Novidades".
+
 ## Como o APK é gerado
 
 Cada `push` na branch `main` roda o GitHub Actions ([.github/workflows/build.yml](.github/workflows/build.yml)),
